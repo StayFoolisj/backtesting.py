@@ -205,8 +205,7 @@ class Strategy(metaclass=ABCMeta):
 
         See also `Strategy.sell()`.
         """
-        assert 0 < size < 1 or round(size) == size, \
-            "size must be a positive fraction of equity, or a positive whole number of units"
+        assert size > 0, "size must be a positive number"
         return self._broker.new_order(size, limit, stop, sl, tp)
 
     def sell(self, *,
@@ -220,8 +219,7 @@ class Strategy(metaclass=ABCMeta):
 
         See also `Strategy.buy()`.
         """
-        assert 0 < size < 1 or round(size) == size, \
-            "size must be a positive fraction of equity, or a positive whole number of units"
+        assert size > 0, "size must be a positive number"
         return self._broker.new_order(-size, limit, stop, sl, tp)
 
     @property
@@ -424,11 +422,10 @@ class Order:
     @property
     def size(self) -> float:
         """
-        Order size (negative for short orders).
+        Represents the size of the order.
 
-        If size is a value between 0 and 1, it is interpreted as a fraction of current
-        available liquidity (cash plus `Position.pl` minus used margin).
-        A value greater than or equal to 1 indicates an absolute number of units.
+        The size is a positive value for long orders and a negative value for short orders.
+        This property indicates the absolute number of units involved in the order.
         """
         return self.__size
 
@@ -534,7 +531,7 @@ class Trade:
     def close(self, portion: float = 1.):
         """Place new `Order` to close `portion` of the trade at next market price."""
         assert 0 < portion <= 1, "portion must be a fraction between 0 and 1"
-        size = copysign(max(1, round(abs(self.__size) * portion)), -self.__size)
+        size = copysign(abs(self.__size) * portion, -self.__size)
         order = Order(self.__broker, size, parent_trade=self)
         self.__broker.orders.insert(0, order)
 
@@ -846,7 +843,7 @@ class _Broker:
                     assert order not in self.orders  # Removed when trade was closed
                 else:
                     # It's a trade.close() order, now done
-                    assert abs(_prev_size) >= abs(size) >= 1
+                    assert abs(_prev_size) >= abs(size), "The previous size must be greater than or equal to the current size"
                     self.orders.remove(order)
                 continue
 
@@ -858,22 +855,12 @@ class _Broker:
 
             if order.limit:
                 adjusted_price = order.limit
-            else: 
+            else:
                 adjusted_price = self._adjusted_price(order.size, price)
-                print(f'Original Limit Price {order.limit} adjusted price: {adjusted_price} price {price}')
+                print(f'Limit Price {order.limit} adjusted: {adjusted_price} price {price}')
 
-            # If order size was specified proportionally,
-            # precompute true size in units, accounting for margin and spread/commissions
-            size = order.size
-            if -1 < size < 1:
-                size = copysign(int((self.margin_available * self._leverage * abs(size))
-                                    // adjusted_price), size)
-                # Not enough cash/margin even for a single unit
-                if not size:
-                    self.orders.remove(order)
-                    continue
-            assert size == round(size)
-            need_size = int(size)
+            # No rounding to ensure fractional sizes are supported
+            need_size = order.size
 
             if not self._hedging:
                 # Fill position by FIFO closing/reducing existing opposite-facing trades.
