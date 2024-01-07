@@ -506,7 +506,11 @@ class Trade:
     When an `Order` is filled, it results in an active `Trade`.
     Find active trades in `Strategy.trades` and closed, settled trades in `Strategy.closed_trades`.
     """
+    _id_counter = 0
     def __init__(self, broker: '_Broker', size: int, entry_price: float, entry_bar):
+        Trade._id_counter += 1
+        self.__trade_id = Trade._id_counter
+
         self.__broker = broker
         self.__size = size
         self.__entry_price = entry_price
@@ -517,7 +521,7 @@ class Trade:
         self.__tp_order: Optional[Order] = None
 
     def __repr__(self):
-        return f'<Trade size={self.__size} time={self.__entry_bar}-{self.__exit_bar or ""} ' \
+        return f'<Trade id={self.__id} <Trade size={self.__size} time={self.__entry_bar}-{self.__exit_bar or ""} ' \
                f'price={self.__entry_price}-{self.__exit_price or ""} pl={self.pl:.0f}>'
 
     def _replace(self, **kwargs):
@@ -536,6 +540,10 @@ class Trade:
         self.__broker.orders.insert(0, order)
 
     # Fields getters
+    @property
+    def trade_id(self) -> int:
+        """Unique identifier for the Trade."""
+        return self.__trade_id
 
     @property
     def size(self):
@@ -682,6 +690,9 @@ class _Broker:
         self.position = Position(self)
         self.closed_trades: List[Trade] = []
 
+        self._last_price = None
+        self._last_price_index = -1
+
     def __repr__(self):
         return f'<Broker: {self._cash:.0f}{self.position.pl:+.1f} ({len(self.trades)} trades)>'
 
@@ -738,7 +749,13 @@ class _Broker:
     @property
     def last_price(self) -> float:
         """ Price at the last (current) close. """
-        return self._data.Close[-1]
+        current_index = len(self._data) - 1  
+        if self._last_price_index == current_index:
+            return self._last_price  # Return cached price if the index hasn't changed
+
+        self._last_price = self._data.Close[-1]
+        self._last_price_index = current_index
+        return self._last_price
 
     def _adjusted_price(self, size=None, price=None) -> float:
         """
@@ -857,7 +874,7 @@ class _Broker:
                 adjusted_price = order.limit
             else:
                 adjusted_price = self._adjusted_price(order.size, price)
-                print(f'Limit Price {order.limit} adjusted: {adjusted_price} price {price}')
+                # print(f'Limit Price {order.limit} adjusted: {adjusted_price} price {price}')
 
             # No rounding to ensure fractional sizes are supported
             need_size = order.size
