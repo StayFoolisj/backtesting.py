@@ -6,7 +6,7 @@ if sys.version_info < (3, 6):
 
 requirements = [
     'numpy >= 1.17.0, <= 1.24',
-    'pandas >= 0.25.0, != 0.25.0',
+    'pandas == 1.5.3',
     'bokeh >= 1.4.0',
 ]
 
