@@ -4,6 +4,18 @@ import sys
 if sys.version_info < (3, 6):
     sys.exit('ERROR: Backtesting.py requires Python 3.6+')
 
+requirements = [
+    'numpy >= 1.17.0',
+    'pandas >= 0.25.0, != 0.25.0',
+    'bokeh >= 1.4.0',
+]
+
+# Check for an environment variable and add CUDA dependencies if it's set
+if os.getenv('CUDA_ENABLED') == '1':
+    cuda_requirements = [
+        "cudf-cu12==23.12.1",
+    ]
+    requirements.extend(cuda_requirements)
 
 if __name__ == '__main__':
     from setuptools import setup, find_packages
@@ -30,11 +42,7 @@ if __name__ == '__main__':
         use_scm_version={
             'write_to': os.path.join('backtesting', '_version.py'),
         },
-        install_requires=[
-            'numpy >= 1.17.0',
-            'pandas >= 0.25.0, != 0.25.0',
-            'bokeh >= 1.4.0',
-        ],
+        install_requires=requirements,
         extras_require={
             'doc': [
                 'pdoc3',

@@ -1,13 +1,16 @@
 from typing import List, TYPE_CHECKING, Union
 
 import numpy as np
-import pandas as pd
 
-from ._util import _data_period
+from ._util import _data_period, is_gpu_accelerated
 
 if TYPE_CHECKING:
     from .backtesting import Strategy, Trade
 
+if is_gpu_accelerated():
+    import cudf as pd
+else: 
+    import pandas as pd
 
 def compute_drawdown_duration_peaks(dd: pd.Series):
     iloc = np.unique(np.r_[(dd == 0).values.nonzero()[0], len(dd) - 1])

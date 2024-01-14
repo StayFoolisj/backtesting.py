@@ -18,12 +18,16 @@ from inspect import currentframe
 from typing import Sequence, Optional, Union, Callable
 
 import numpy as np
-import pandas as pd
 
 from .backtesting import Strategy
 from ._plotting import plot_heatmaps as _plot_heatmaps
 from ._stats import compute_stats as _compute_stats
-from ._util import _Array, _as_str
+from ._util import _Array, _as_str, is_gpu_accelerated
+
+if is_gpu_accelerated():
+    import cudf as pd
+else: 
+    import pandas as pd
 
 __pdoc__ = {}
 

@@ -8,7 +8,6 @@ from functools import partial
 from typing import Callable, List, Union
 
 import numpy as np
-import pandas as pd
 
 from bokeh.colors import RGB
 from bokeh.colors.named import (
@@ -38,7 +37,12 @@ from bokeh.layouts import gridplot
 from bokeh.palettes import Category10
 from bokeh.transform import factor_cmap
 
-from backtesting._util import _data_period, _as_list, _Indicator
+from backtesting._util import _data_period, _as_list, _Indicator, is_gpu_accelerated
+
+if is_gpu_accelerated():
+    import cudf as pd
+else: 
+    import pandas as pd
 
 with open(os.path.join(os.path.dirname(__file__), 'autoscale_cb.js'),
           encoding='utf-8') as _f:

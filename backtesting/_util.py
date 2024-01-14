@@ -3,8 +3,15 @@ from typing import Dict, List, Optional, Sequence, Union, cast
 from numbers import Number
 
 import numpy as np
-import pandas as pd
+import os
 
+def is_gpu_accelerated():
+    return os.getenv('CUDA_ENABLED', 'False').lower() in ['true', '1', 't', 'y', 'yes']
+
+if is_gpu_accelerated():
+    import cudf as pd
+else: 
+    import pandas as pd
 
 def try_(lazy_func, default=None, exception=Exception):
     try:

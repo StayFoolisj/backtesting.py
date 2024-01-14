@@ -5,8 +5,10 @@ module directly, e.g.
 
     from backtesting import Backtest, Strategy
 """
-import multiprocessing as mp
+
 import os
+
+import multiprocessing as mp
 import sys
 import warnings
 from abc import abstractmethod, ABCMeta
@@ -19,7 +21,6 @@ from numbers import Number
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
-import pandas as pd
 from numpy.random import default_rng
 
 try:
@@ -31,7 +32,13 @@ except ImportError:
 
 from ._plotting import plot
 from ._stats import compute_stats
-from ._util import _as_str, _Indicator, _Data, try_
+from ._util import _as_str, _Indicator, _Data, try_, is_gpu_accelerated
+
+if is_gpu_accelerated():
+    import cudf as pd
+else: 
+    import pandas as pd
+
 
 __pdoc__ = {
     'Strategy.__init__': False,
