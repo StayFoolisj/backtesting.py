@@ -11,11 +11,11 @@ requirements = [
 ]
 
 # Check for an environment variable and add CUDA dependencies if it's set
-if os.getenv('CUDA_ENABLED') == '1':
-    cuda_requirements = [
-        "cudf-cu12==23.12.00",
-    ]
-    requirements.extend(cuda_requirements)
+# if os.getenv('CUDA_ENABLED') == '1':
+#     cuda_requirements = [
+#         "cudf-cu12==23.12.00",
+#     ]
+#     requirements.extend(cuda_requirements)
 
 if __name__ == '__main__':
     from setuptools import setup, find_packages
