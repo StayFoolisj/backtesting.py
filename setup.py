@@ -5,7 +5,7 @@ if sys.version_info < (3, 6):
     sys.exit('ERROR: Backtesting.py requires Python 3.6+')
 
 requirements = [
-    'numpy >= 1.17.0',
+    'numpy >= 1.17.0, <= 1.24',
     'pandas >= 0.25.0, != 0.25.0',
     'bokeh >= 1.4.0',
 ]
