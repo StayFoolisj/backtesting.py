@@ -13,7 +13,7 @@ requirements = [
 # Check for an environment variable and add CUDA dependencies if it's set
 if os.getenv('CUDA_ENABLED') == '1':
     cuda_requirements = [
-        "cudf-cu12==23.12.1",
+        "cudf-cu12==23.12.00",
     ]
     requirements.extend(cuda_requirements)
 
