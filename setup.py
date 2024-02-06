@@ -8,6 +8,7 @@ requirements = [
     'numpy >= 1.17.0, <= 1.24',
     'pandas == 1.5.3',
     'bokeh >= 1.4.0',
+    'numba == 0.59.0',
 ]
 
 # Check for an environment variable and add CUDA dependencies if it's set

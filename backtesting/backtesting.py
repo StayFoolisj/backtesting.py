@@ -20,7 +20,9 @@ from math import copysign
 from numbers import Number
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
+from numba import njit
 import numpy as np
+
 from numpy.random import default_rng
 
 try:
@@ -304,6 +306,19 @@ class _Orders(tuple):
                                  'Use `Order` API instead. See docs.')
         raise AttributeError(f"'tuple' object has no attribute {item!r}")
 
+@njit
+def weighted_pl_pct(weights, pl_pcts):
+    """
+    Calculate the weighted profit or loss percentage.
+
+    Parameters:
+    weights (np.ndarray): The weights for each trade, based on their sizes.
+    pl_pcts (np.ndarray): The profit or loss percentage for each trade.
+
+    Returns:
+    float: The weighted profit or loss percentage.
+    """
+    return (pl_pcts * weights).sum()
 
 class Position:
     """
@@ -325,7 +340,7 @@ class Position:
     def size(self) -> float:
         """Position size in units of asset. Negative if position is short."""
         return sum(trade.size for trade in self.__broker.trades)
-
+    
     @property
     def pl(self) -> float:
         """Profit (positive) or loss (negative) of the current position in cash units."""
@@ -334,10 +349,19 @@ class Position:
     @property
     def pl_pct(self) -> float:
         """Profit (positive) or loss (negative) of the current position in percent."""
-        weights = np.abs([trade.size for trade in self.__broker.trades])
-        weights = weights / weights.sum()
-        pl_pcts = np.array([trade.pl_pct for trade in self.__broker.trades])
-        return (pl_pcts * weights).sum()
+        if not self.__broker.trades:
+            return 0.0  # Return 0 if there are no trades to prevent division by zero
+        
+        # Prepare the data for Numba optimization
+        sizes = np.array([trade.size for trade in self.__broker.trades], dtype=np.float64)
+        pl_pcts = np.array([trade.pl_pct for trade in self.__broker.trades], dtype=np.float64)
+        
+        # Normalize the weights
+        weights = np.abs(sizes)
+        weights /= weights.sum()
+
+        # Use the Numba-optimized function
+        return weighted_pl_pct(weights, pl_pcts)
 
     @property
     def is_long(self) -> bool:
@@ -528,8 +552,8 @@ class Trade:
         self.__tp_order: Optional[Order] = None
 
     def __repr__(self):
-        return f'<Trade id={self.__id} <Trade size={self.__size} time={self.__entry_bar}-{self.__exit_bar or ""} ' \
-               f'price={self.__entry_price}-{self.__exit_price or ""} pl={self.pl:.0f}>'
+        return f'<Trade id={self.__trade_id} size={self.__size} time={self.__entry_bar}-{self.__exit_bar or ""} ' \
+            f'price={self.__entry_price}-{self.__exit_price or ""} pl={self.pl:.0f}>'
 
     def _replace(self, **kwargs):
         for k, v in kwargs.items():
@@ -756,7 +780,7 @@ class _Broker:
     @property
     def last_price(self) -> float:
         """ Price at the last (current) close. """
-        current_index = len(self._data) - 1  
+        current_index = len(self._data) - 1 
         if self._last_price_index == current_index:
             return self._last_price  # Return cached price if the index hasn't changed
 
