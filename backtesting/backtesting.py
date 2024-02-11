@@ -521,8 +521,8 @@ class Trade:
         self.__tp_order: Optional[Order] = None
 
     def __repr__(self):
-        return f'<Trade id={self.__id} <Trade size={self.__size} time={self.__entry_bar}-{self.__exit_bar or ""} ' \
-               f'price={self.__entry_price}-{self.__exit_price or ""} pl={self.pl:.0f}>'
+        return f'<Trade id={self.__trade_id} size={self.__size} time={self.__entry_bar}-{self.__exit_bar or ""} ' \
+            f'price={self.__entry_price}-{self.__exit_price or ""} pl={self.pl:.0f}>'
 
     def _replace(self, **kwargs):
         for k, v in kwargs.items():
