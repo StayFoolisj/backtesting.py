@@ -346,11 +346,12 @@ class Position:
         """True if the position is short (position size is negative)."""
         return self.size < 0
 
-    def close(self, portion: float = 1.):
+    def close(self, portion: float = 1., tag=None):
         """
         Close portion of position by closing `portion` of each active trade. See `Trade.close`.
         """
         for trade in self.__broker.trades:
+            trade.tag = tag
             trade.close(portion)
 
     def __repr__(self):
@@ -602,6 +603,10 @@ class Trade:
         See also `Order.tag`.
         """
         return self.__tag
+
+    @tag.setter
+    def tag(self, new_tag):
+        self.__tag = new_tag
 
     @property
     def _sl_order(self):
@@ -999,7 +1004,7 @@ class _Broker:
         self._cash += trade.pl
 
     def _open_trade(self, price: float, size: int,
-                    sl: Optional[float], tp: Optional[float], time_index: int, tag):
+                    sl: Optional[float], tp: Optional[float], time_index: int, tag=None):
         trade = Trade(self, size, price, time_index, tag)
         self.trades.append(trade)
         # Create SL/TP (bracket) orders.
@@ -1213,6 +1218,7 @@ class Backtest:
             else:
                 # Close any remaining open trades so they produce some stats
                 for trade in broker.trades:
+                    trade.tag = 'Force closed at end of backtest'
                     trade.close()
 
                 # Re-run broker one last time to handle orders placed in the last strategy
