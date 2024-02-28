@@ -1218,7 +1218,9 @@ class Backtest:
             else:
                 # Close any remaining open trades so they produce some stats
                 for trade in broker.trades:
-                    trade.tag = 'Force closed at end of backtest'
+                    current_tag = trade.tag if trade.tag is not None else {}
+                    current_tag['exit_meta'] = 'Force closed at end of backtest'
+                    trade.tag = current_tag
                     trade.close()
 
                 # Re-run broker one last time to handle orders placed in the last strategy
