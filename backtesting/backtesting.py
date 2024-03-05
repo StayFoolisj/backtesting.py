@@ -1200,12 +1200,24 @@ class Backtest:
         # np.nan >= 3 is not invalid; it's False.
         with np.errstate(invalid='ignore'):
 
+            total_steps = len(self._data) - start
+            progress_interval = 1  # Yield progress every n% of completion
+            steps_per_progress_update = total_steps * progress_interval // 100
+            progress_yielded_at_step = 0
+
             for i in range(start, len(self._data)):
                 # Prepare data and indicators for `next` call
                 data._set_length(i + 1)
                 for attr, indicator in indicator_attrs:
                     # Slice indicator on the last dimension (case of 2d indicator)
                     setattr(strategy, attr, indicator[..., :i + 1])
+
+                # Calculate current progress
+                current_step = i - start
+                if current_step - progress_yielded_at_step >= steps_per_progress_update:
+                    progress = (current_step / total_steps) * 100
+                    yield round(progress)
+                    progress_yielded_at_step = current_step
 
                 # Handle orders processing and broker stuff
                 try:
