@@ -162,6 +162,10 @@ class _Data:
         if arr is None:
             arr = self.__cache[key] = cast(_Array, self.__arrays[key][:self.__i])
         return arr
+    
+    @property
+    def current_index(self):
+        return self.__i
 
     @property
     def Open(self) -> _Array:
@@ -186,6 +190,18 @@ class _Data:
     @property
     def index(self) -> pd.DatetimeIndex:
         return self.__get_array('__index')
+    
+    @property
+    def current_time(self) -> pd.Timestamp:
+        # Make sure there is at least one element in the index before accessing it.
+        if len(self.index) > 0:
+            # Adjust current_index to be within the bounds by setting it to the minimum of current_index or the last valid index
+            valid_index = min(self.current_index, len(self.index) - 1)
+            return self.index[valid_index]
+        else:
+            # Handle the case where there is no data in the index.
+            print("No data available in the index.")
+            return None
 
     # Make pickling in Backtest.optimize() work with our catch-all __getattr__
     def __getstate__(self):
