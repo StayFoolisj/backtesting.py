@@ -17,6 +17,7 @@ from itertools import repeat, product, chain, compress
 from math import copysign
 from numbers import Number
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
+from decimal import Decimal
 
 import numpy as np
 import pandas as pd
@@ -641,15 +642,30 @@ class Trade:
         return not self.is_long
 
     @property
-    def pl(self):
-        """Trade profit (positive) or loss (negative) in cash units."""
-        price = self.__exit_price or self.__broker.last_price
+    def pl(self, last_bid=None, last_ask=None):
+        """Trade profit (positive) or loss (negative) in cash units, adjusted for bid/ask if specified."""
+        # Determine price based on whether exit price is set, whether to use bid/ask, and the direction of the trade
+        if self.__exit_price:
+            price = self.__exit_price
+        elif self.__broker._use_bid_ask and last_bid is not None and last_ask is not None:
+            price = last_bid if self.is_long else last_ask
+        else:
+            price = self.__broker.last_price
+
         return self.__size * (price - self.__entry_price)
 
+
     @property
-    def pl_pct(self):
-        """Trade profit (positive) or loss (negative) in percent."""
-        price = self.__exit_price or self.__broker.last_price
+    def pl_pct(self, last_bid=None, last_ask=None):
+        """Trade profit (positive) or loss (negative) in percent, adjusted for bid/ask if specified."""
+        # Determine price based on whether exit price is set, whether to use bid/ask, and the direction of the trade
+        if self.__exit_price:
+            price = self.__exit_price
+        elif self.__broker._use_bid_ask and last_bid is not None and last_ask is not None:
+            price = last_bid if self.is_long else last_ask
+        else:
+            price = self.__broker.last_price
+
         return copysign(1, self.__size) * (price / self.__entry_price - 1)
 
     @property
@@ -705,7 +721,7 @@ class Trade:
 
 class _Broker:
     def __init__(self, *, data, cash, commission, margin,
-                 trade_on_close, hedging, exclusive_orders, index):
+                 trade_on_close, use_bid_ask, hedging, exclusive_orders, index):
         assert 0 < cash, f"cash should be >0, is {cash}"
         assert -.1 <= commission < .1, \
             ("commission should be between -10% "
@@ -716,6 +732,7 @@ class _Broker:
         self._commission = commission
         self._leverage = 1 / margin
         self._trade_on_close = trade_on_close
+        self._use_bid_ask = use_bid_ask
         self._hedging = hedging
         self._exclusive_orders = exclusive_orders
 
@@ -727,6 +744,10 @@ class _Broker:
 
         self._last_price = None
         self._last_price_index = -1
+
+        # Used for rounding prices when using spreads or commissions
+        last_price_decimal = Decimal(str(self._data.Close[-1]))
+        self._price_decimal_places = -last_price_decimal.as_tuple().exponent
 
     def __repr__(self):
         return f'<Broker: {self._cash:.0f}{self.position.pl:+.1f} ({len(self.trades)} trades)>'
@@ -798,7 +819,7 @@ class _Broker:
         Long/short `price`, adjusted for commisions.
         In long positions, the adjusted price is a fraction higher, and vice versa.
         """
-        return (price or self.last_price) * (1 + copysign(self._commission, size))
+        return round((price or self.last_price) * (1 + copysign(self._commission, size)), self._price_decimal_places)
 
     @property
     def equity(self) -> float:
@@ -869,8 +890,31 @@ class _Broker:
                          if order.is_long else
                          max(stop_price or open, order.limit))
             else:
-                # Market-if-touched / market order
-                price = prev_close if self._trade_on_close else open
+                # # Market-if-touched / market order
+                if self._use_bid_ask:
+                    if self._trade_on_close:
+                        # Using the last candle data
+                        bid, ask = data.Close[-1], data.Open[-1]
+                    else:
+                        # Using the second last candle data
+                        bid, ask = data.Close[-2], data.Open[-2]
+
+                    """
+                    when opening a long position we only look at the ask price, 
+                    when closing a long position we only look at the bid price, 
+                    when opening a short position we only look at the bid price, 
+                    when closing a short position we only look at the ask price
+
+                    order.parent_trade signifies this is an active trade to be closed
+                    """
+                    if order.is_long:
+                        price = ask if not order.parent_trade else bid
+                    elif order.is_short:
+                        price = bid if not order.parent_trade else ask
+
+                elif not self._use_bid_ask:
+                    price = prev_close if self._trade_on_close else open
+
                 price = (max(price, stop_price or -np.inf)
                          if order.is_long else
                          min(price, stop_price or np.inf))
@@ -1035,6 +1079,7 @@ class Backtest:
                  commission: float = .0,
                  margin: float = 1.,
                  trade_on_close=False,
+                 use_bid_ask=False,
                  hedging=False,
                  exclusive_orders=False
                  ):
@@ -1134,7 +1179,7 @@ class Backtest:
         self._data: pd.DataFrame = data
         self._broker = partial(
             _Broker, cash=cash, commission=commission, margin=margin,
-            trade_on_close=trade_on_close, hedging=hedging,
+            trade_on_close=trade_on_close, use_bid_ask=use_bid_ask, hedging=hedging,
             exclusive_orders=exclusive_orders, index=data.index,
         )
         self._strategy = strategy
