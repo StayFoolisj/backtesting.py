@@ -642,8 +642,11 @@ class Trade:
         return not self.is_long
 
     @property
-    def pl(self, last_bid=None, last_ask=None):
+    def pl(self):
         """Trade profit (positive) or loss (negative) in cash units, adjusted for bid/ask if specified."""
+
+        last_bid, last_ask = self.__broker._data.Close[-1], self.__broker._data.Open[-1]
+
         # Determine price based on whether exit price is set, whether to use bid/ask, and the direction of the trade
         if self.__exit_price:
             price = self.__exit_price
@@ -656,8 +659,10 @@ class Trade:
 
 
     @property
-    def pl_pct(self, last_bid=None, last_ask=None):
+    def pl_pct(self):
         """Trade profit (positive) or loss (negative) in percent, adjusted for bid/ask if specified."""
+
+        last_bid, last_ask = self.__broker._data.Close[-1], self.__broker._data.Open[-1]
         # Determine price based on whether exit price is set, whether to use bid/ask, and the direction of the trade
         if self.__exit_price:
             price = self.__exit_price
@@ -1138,6 +1143,8 @@ class Backtest:
                             'entry order price')
 
         data = data.copy(deep=False)
+
+        print(f"32 {cash=} {commission=} {margin=} {trade_on_close=} {use_bid_ask=} {hedging=} {exclusive_orders=}")
 
         # Convert index to datetime index
         if (not isinstance(data.index, pd.DatetimeIndex) and
